@@ -143,7 +143,7 @@ password
 alert(
 "Login Success"
 );
-
+window.location.href = "dashboard.html";
 }
 catch(error){
 
