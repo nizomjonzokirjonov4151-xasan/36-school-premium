@@ -143,7 +143,6 @@ password
 alert(
 "Login Success"
 );
-window.location.href = "dashboard.html";
 }
 catch(error){
 
@@ -913,7 +912,7 @@ try{
 /* MODEL */
 const response =
 await fetch(
-"http://localhost:3000/ai",
+"https://three6-school-system.onrender.com/ai",
 {
 method:"POST",
 
