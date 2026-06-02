@@ -1,0 +1,153 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasRole(roles) {
+      return signedIn()
+        && currentUserDoc().data.role in roles;
+    }
+
+    function isTeacherOwnNewRecord() {
+      return hasRole(['teacher'])
+        && request.resource.data.teacherEmail == request.auth.token.email;
+    }
+
+    function isTeacherOwnExistingRecord() {
+      return hasRole(['teacher'])
+        && resource.data.teacherEmail == request.auth.token.email;
+    }
+
+    function isOwnBillingRecord() {
+      return signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+    }
+
+    function isOwnExistingBillingRecord() {
+      return signedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    function isSignedInAuditLog() {
+      return signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+    }
+
+    function isFailedLoginAuditLog() {
+      return !signedIn()
+        && request.resource.data.event == 'failed_login'
+        && request.resource.data.category == 'auth'
+        && request.resource.data.severity == 'warning'
+        && request.resource.data.role == 'guest';
+    }
+
+    match /users/{userId} {
+      allow get, list: if signedIn();
+      allow create: if signedIn();
+      allow update: if hasRole(['superadmin']);
+      allow delete: if hasRole(['superadmin']);
+    }
+
+    match /classes/{classId} {
+      allow read: if signedIn();
+      allow create, update, delete: if hasRole(['superadmin', 'admin', 'director']);
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if signedIn();
+      allow create: if hasRole(['superadmin', 'admin', 'director', 'deputy'])
+        || isTeacherOwnNewRecord();
+      allow update, delete: if hasRole(['superadmin', 'admin', 'director', 'deputy'])
+        || isTeacherOwnExistingRecord();
+    }
+
+    match /homework/{homeworkId} {
+      allow read: if signedIn();
+      allow create: if hasRole(['superadmin', 'admin', 'deputy'])
+        || isTeacherOwnNewRecord();
+      allow update, delete: if hasRole(['superadmin', 'admin', 'deputy'])
+        || isTeacherOwnExistingRecord();
+    }
+
+    match /gallery/{galleryId} {
+      allow read: if signedIn();
+      allow create: if hasRole(['superadmin', 'admin', 'director']);
+      allow update, delete: if hasRole(['superadmin']);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn();
+      allow create, update, delete: if hasRole(['superadmin', 'admin', 'director', 'deputy', 'teacher']);
+    }
+
+    match /calendarEvents/{eventId} {
+      allow read: if signedIn();
+      allow create, update, delete: if hasRole(['superadmin', 'admin', 'director', 'deputy', 'teacher']);
+    }
+
+    match /grades/{gradeId} {
+      allow read: if signedIn();
+      allow create: if hasRole(['superadmin', 'admin', 'director', 'deputy'])
+        || isTeacherOwnNewRecord();
+      allow update, delete: if hasRole(['superadmin', 'admin', 'director', 'deputy'])
+        || isTeacherOwnExistingRecord();
+    }
+
+    match /profiles/{profileId} {
+      allow read: if signedIn();
+      allow create, update, delete: if hasRole(['superadmin', 'admin', 'director', 'deputy', 'teacher']);
+    }
+
+    match /galleryComments/{commentId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if hasRole(['superadmin']);
+    }
+
+    match /galleryLikes/{likeId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn();
+      allow delete: if hasRole(['superadmin']);
+    }
+
+    match /galleryUserLikes/{likeId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.user == request.auth.token.email;
+      allow update, delete: if hasRole(['superadmin']);
+    }
+
+    match /subscriptions/{userId} {
+      allow read: if signedIn()
+        && (userId == request.auth.uid || hasRole(['superadmin']));
+      allow create, update, delete: if hasRole(['superadmin']);
+    }
+
+    match /paymentHistory/{paymentId} {
+      allow read: if hasRole(['superadmin']) || isOwnExistingBillingRecord();
+      allow create: if isOwnBillingRecord();
+      allow update, delete: if hasRole(['superadmin']);
+    }
+
+    match /transactionLogs/{logId} {
+      allow read: if hasRole(['superadmin']) || isOwnExistingBillingRecord();
+      allow create: if isOwnBillingRecord() || hasRole(['superadmin']);
+      allow update, delete: if hasRole(['superadmin']);
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if hasRole(['superadmin', 'admin', 'director']);
+      allow create: if isSignedInAuditLog() || isFailedLoginAuditLog();
+      allow update, delete: if hasRole(['superadmin']);
+    }
+  }
+}
