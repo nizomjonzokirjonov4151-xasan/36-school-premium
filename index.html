@@ -22,11 +22,18 @@ href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&
 rel="stylesheet">
 
 <link
+href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+rel="stylesheet">
+
+<link
 rel="stylesheet"
 href="style.css">
 
 <script
 src="https://cdn.jsdelivr.net/npm/chart.js">
+</script>
+<script
+src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js">
 </script>
 <script
 src="https://www.google.com/recaptcha/api.js"
@@ -35,7 +42,16 @@ defer>
 </script>
 </head>
 
-<body>
+<body class="light-mode">
+<div id="loader">
+
+<div class="spinner"></div>
+
+<p>
+Loading 36 School...
+</p>
+
+</div>
 
 <!-- LOGIN PAGE -->
 
@@ -45,6 +61,8 @@ class="login-page">
 
 <div class="login-card">
 
+<div class="login-logo">
+
 <h1>
 36 School
 </h1>
@@ -53,25 +71,25 @@ class="login-page">
 Premium AI School Platform
 </p>
 
+</div>
+
 <input
 type="email"
 id="emailInput"
-placeholder="Email">
+placeholder="Enter your email">
 
 <input
 type="password"
 id="passwordInput"
-placeholder="Password">
+placeholder="Enter your password">
 
-<button id="loginBtn">
+<button
+id="loginBtn"
+class="login-btn">
 
 Login
 
 </button>
-
-<div class="g-recaptcha"
-data-sitekey="6Ledw-csAAAAAHy6cw5QMRfIsPa2uX3ia_INKQPn">
-</div>
 
 </div>
 
@@ -93,13 +111,27 @@ style="display:none;">
 
 </div>
 
+<div id="menuBtn">
+
+☰
+
+</div>
+
 <div class="nav-center">
 
 <div
 class="nav-item"
 onclick="showSection('dashboardSection')">
-
 Dashboard
+
+</div>
+
+<div
+id="teacherNav"
+class="nav-item"
+style="display:none;"
+onclick="showSection('teacherSection')">
+Teacher Panel
 
 </div>
 
@@ -141,7 +173,69 @@ onclick="showSection('aiSection')">
 AI Assistant
 
 </div>
+<div
+class="nav-item notification-nav"
+onclick="showSection('notificationsSection')">
 
+Notifications
+
+<span id="notifBadge">
+0
+</span>
+
+</div>
+
+<div
+class="nav-item"
+onclick="showSection('gradesSection')">
+
+Grades
+
+</div>
+
+<div
+class="nav-item"
+onclick="showSection('calendarSection')">
+
+Calendar
+
+</div>
+
+<div
+class="nav-item"
+onclick="showSection('subscriptionSection')">
+
+Billing
+
+</div>
+
+<div
+id="securityLogsNav"
+class="nav-item"
+style="display:none;"
+onclick="showSection('securityLogsSection')">
+
+Security Logs
+
+</div>
+
+<div
+id="antiFraudNav"
+class="nav-item"
+style="display:none;"
+onclick="showSection('antiFraudSection')">
+
+Anti-Fraud
+
+</div>
+
+<div
+id="usersNav"
+class="nav-item"
+onclick="showSection('usersSection')">
+
+Users
+</div>
 </div>
 
 <div class="nav-right">
@@ -156,17 +250,18 @@ Uzbek
 </option>
 
 </select>
-<div id="planBadge">
-
-🟢 FREE
-
-</div>
-
-<button id="upgradeBtn">
+<button
+id="upgradeBtn"
+style="display:none;">
 
 ✨ Upgrade PRO
 
 </button>
+
+<div
+id="planBadge"
+style="display:none;">
+</div>
 <div class="profile-box">
 
 <div class="profile-avatar">
@@ -175,7 +270,7 @@ X
 
 </div>
 
-<div>
+<div class="profile-details">
 
 <h4 id="welcomeUser">
 
@@ -189,10 +284,20 @@ Role
 
 </p>
 
-</div>
+<span
+id="roleBadge"
+class="role-badge">
+Guest
+</span>
 
 </div>
 
+</div>
+<button id="themeToggle">
+
+🌙 Dark
+
+</button>
 <button id="logoutBtn">
 
 Logout
@@ -202,6 +307,103 @@ Logout
 </div>
 
 </div>
+<div id="mobileMenu" style="display:none;">
+
+<div
+class="mobile-item"
+onclick="showSection('dashboardSection')">
+Dashboard
+</div>
+
+<div
+id="teacherMobileNav"
+class="mobile-item"
+style="display:none;"
+onclick="showSection('teacherSection')">
+Teacher Panel
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('classesSection')">
+Classes
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('attendanceSection')">
+Attendance
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('homeworkSection')">
+Homework
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('gallerySection')">
+Gallery
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('aiSection')">
+AI Assistant
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('notificationsSection')">
+Notifications
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('gradesSection')">
+Grades
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('calendarSection')">
+Calendar
+</div>
+
+<div
+class="mobile-item"
+onclick="showSection('subscriptionSection')">
+Billing
+</div>
+
+<div
+id="securityLogsMobileNav"
+class="mobile-item"
+style="display:none;"
+onclick="showSection('securityLogsSection')">
+Security Logs
+</div>
+
+<div
+id="antiFraudMobileNav"
+class="mobile-item"
+style="display:none;"
+onclick="showSection('antiFraudSection')">
+Anti-Fraud
+</div>
+
+<div
+id="usersMobileNav"
+class="mobile-item"
+style="display:none;"
+onclick="showSection('usersSection')">
+Users
+</div>
+
+</div>
+
+<div id="sidebarOverlay"></div>
 
 <!-- MAIN -->
 
@@ -267,6 +469,102 @@ Attendance
 
 </div>
 
+<!-- TEACHER PANEL -->
+
+<div
+id="teacherSection"
+style="display:none;">
+
+<div class="teacher-panel-shell">
+
+<div class="teacher-hero">
+
+<div>
+
+<span class="teacher-kicker">
+Teacher Workspace
+</span>
+
+<h2>
+My Classes Command Center
+</h2>
+
+<p>
+Manage attendance, homework, and grades for your assigned classes.
+</p>
+
+</div>
+
+<div class="teacher-actions">
+
+<button onclick="showSection('attendanceSection')">
+Attendance
+</button>
+
+<button onclick="showSection('homeworkSection')">
+Homework
+</button>
+
+<button onclick="showSection('gradesSection')">
+Grades
+</button>
+
+</div>
+
+</div>
+
+<div class="teacher-metrics-grid">
+
+<div class="teacher-metric-card">
+<span>Classes</span>
+<strong id="teacherClassCount">0</strong>
+</div>
+
+<div class="teacher-metric-card">
+<span>Homework</span>
+<strong id="teacherHomeworkCount">0</strong>
+</div>
+
+<div class="teacher-metric-card">
+<span>Attendance Avg</span>
+<strong id="teacherAttendanceAvg">0%</strong>
+</div>
+
+<div class="teacher-metric-card">
+<span>Grades</span>
+<strong id="teacherGradesCount">0</strong>
+</div>
+
+</div>
+
+<div class="teacher-panel-grid">
+
+<div class="glass-card section-card">
+
+<div class="section-top">
+<h2>My Classes</h2>
+</div>
+
+<div id="teacherClassesPreview"></div>
+
+</div>
+
+<div class="glass-card section-card">
+
+<div class="section-top">
+<h2>Recent Teacher Activity</h2>
+</div>
+
+<div id="teacherActivityPreview"></div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
 <!-- DASHBOARD -->
 
 <div id="dashboardSection">
@@ -278,7 +576,57 @@ Attendance
 <h2>
 📊 School Analytics
 </h2>
+<div class="analytics-grid">
 
+<div class="analytics-card">
+
+<h3>
+📚 Classes
+</h3>
+
+<p id="classesCount">
+0
+</p>
+
+</div>
+
+<div class="analytics-card">
+
+<h3>
+📝 HW
+</h3>
+
+<p id="homeworkCount">
+0
+</p>
+
+</div>
+
+<div class="analytics-card">
+
+<h3>
+🔔 Alerts
+</h3>
+
+<p id="notificationCount">
+0
+</p>
+
+</div>
+
+<div class="analytics-card">
+
+<h3>
+🎓 Grades
+</h3>
+
+<p id="gradesCount">
+0
+</p>
+
+</div>
+
+</div>
 <canvas id="statsChart">
 
 </canvas>
@@ -294,6 +642,25 @@ Attendance
 <div id="rankingContainer">
 
 </div>
+
+</div>
+<div class="glass-card section-card full-width">
+
+<div class="section-top">
+
+<h2>
+👤 Student Profiles
+</h2>
+
+<button id="addProfileBtn">
+
++ Add Profile
+
+</button>
+
+</div>
+
+<div id="profilesContainer"></div>
 
 </div>
 
@@ -320,9 +687,12 @@ style="display:none;">
 + Add
 
 </button>
-
 </div>
-
+<input
+type="text"
+id="classSearch"
+placeholder="Search classes..."
+>
 <div id="classesContainer">
 
 </div>
@@ -412,10 +782,32 @@ style="display:none;">
 </button>
 
 </div>
-
 <div id="galleryContainer">
 
 </div>
+
+<label
+class="upload-dropzone"
+for="galleryFile">
+
+<span class="upload-icon">
+↑
+</span>
+
+<span>
+Drop or choose a gallery image
+</span>
+
+<small>
+Premium media upload for school moments
+</small>
+
+</label>
+
+<input
+type="file"
+id="galleryFile"
+accept="image/*">
 
 </div>
 
@@ -460,7 +852,558 @@ Send
 </div>
 
 </div>
+</div>
+<div
+id="notificationsSection"
+style="display:none;">
 
+<div class="glass-card section-card full-width">
+
+<div class="section-top">
+
+<h2>
+🔔 Notifications
+</h2>
+
+<button id="addNotificationBtn">
+
++ Add
+
+</button>
+
+</div>
+
+<div id="notificationsContainer">
+
+</div>
+
+</div>
+
+</div>
+<div
+id="gradesSection"
+style="display:none;">
+
+<div class="glass-card section-card full-width">
+
+<div class="section-top">
+
+<h2>
+🎓 Student Grades
+</h2>
+
+<button id="addGradeBtn">
+
++ Add Grade
+
+</button>
+
+</div>
+
+<div id="gradesContainer">
+
+</div>
+
+</div>
+
+</div>
+
+<!-- CALENDAR -->
+
+<div
+id="calendarSection"
+style="display:none;">
+
+<div class="calendar-shell">
+
+<div class="calendar-hero">
+
+<div>
+
+<span class="calendar-kicker">
+Live School Calendar
+</span>
+
+<h2>
+Schedules, Exams, Deadlines
+</h2>
+
+<p>
+Track class schedules, homework due dates, exams, and school events in real time.
+</p>
+
+</div>
+
+<button
+id="addCalendarEventBtn"
+class="calendar-primary-btn"
+style="display:none;">
+
++ Add Event
+
+</button>
+
+</div>
+
+<div class="calendar-filter-bar">
+
+<button class="calendar-filter active" data-filter="all">
+All
+</button>
+
+<button class="calendar-filter" data-filter="schedule">
+Class Schedule
+</button>
+
+<button class="calendar-filter" data-filter="exam">
+Exams
+</button>
+
+<button class="calendar-filter" data-filter="homework">
+Homework
+</button>
+
+<button class="calendar-filter" data-filter="event">
+Events
+</button>
+
+</div>
+
+<div class="glass-card calendar-card">
+
+<div id="schoolCalendar"></div>
+
+</div>
+
+</div>
+
+</div>
+<!-- SUBSCRIPTIONS -->
+
+<div
+id="subscriptionSection"
+style="display:none;">
+
+<div class="billing-shell">
+
+<div class="billing-hero">
+
+<div>
+
+<span class="billing-kicker">
+Secure Billing
+</span>
+
+<h2>
+Premium subscriptions
+</h2>
+
+<p>
+Manage plans, payment health, role access, and simulated card verification with live Firebase sync.
+</p>
+
+</div>
+
+<div class="billing-status-card">
+
+<span id="subscriptionStatusBadge">
+FREE
+</span>
+
+<strong id="subscriptionPlanName">
+Free
+</strong>
+
+<small id="subscriptionMeta">
+Current school workspace plan
+</small>
+
+</div>
+
+</div>
+
+<div id="pricingCards" class="pricing-grid"></div>
+
+<div class="billing-grid">
+
+<div class="glass-card billing-panel">
+
+<div class="section-top">
+
+<h2>
+Payment History
+</h2>
+
+</div>
+
+<div id="paymentHistoryContainer"></div>
+
+</div>
+
+<div class="glass-card billing-panel">
+
+<div class="section-top">
+
+<h2>
+Transaction Logs
+</h2>
+
+</div>
+
+<div id="transactionLogsContainer"></div>
+
+</div>
+
+</div>
+
+<div
+id="subscriptionAdminPanel"
+class="glass-card billing-panel full-width"
+style="display:none;">
+
+<div class="section-top">
+
+<h2>
+Super Admin Subscription Management
+</h2>
+
+</div>
+
+<div id="subscriptionUsersContainer"></div>
+
+</div>
+
+</div>
+
+</div>
+<!-- USERS SECTION -->
+
+<div
+id="usersSection"
+style="display:none;">
+
+<div class="glass-card section-card full-width">
+
+<div class="section-top">
+
+<h2>
+👥 Users Management
+</h2>
+
+</div>
+
+<div id="usersContainer">
+
+</div>
+
+</div>
+
+</div>
+
+<!-- ACCESS DENIED -->
+
+<div
+id="accessDeniedSection"
+style="display:none;">
+
+<div class="access-denied-shell">
+
+<div class="access-denied-card">
+
+<span class="access-denied-code">
+403
+</span>
+
+<h2>
+Access Denied
+</h2>
+
+<p>
+Your role does not have permission to open this page.
+</p>
+
+<button onclick="showDefaultSectionForRole()">
+Return to Dashboard
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- SECURITY LOGS -->
+
+<div
+id="securityLogsSection"
+style="display:none;">
+
+<div class="security-shell">
+
+<div class="security-hero">
+
+<div>
+
+<span class="security-kicker">
+Live Audit Trail
+</span>
+
+<h2>
+Security Logs
+</h2>
+
+<p>
+Monitor admin activity, authentication events, roles, devices, and severity in real time.
+</p>
+
+</div>
+
+<div class="security-live-pill">
+<span></span>
+Live Firebase sync
+</div>
+
+</div>
+
+<div class="security-controls">
+
+<input
+id="securityLogSearch"
+type="text"
+placeholder="Search action, user, role, device...">
+
+<select id="securitySeverityFilter">
+<option value="all">All severity</option>
+<option value="info">Info</option>
+<option value="warning">Warning</option>
+<option value="critical">Critical</option>
+</select>
+
+<select id="securityEventFilter">
+<option value="all">All events</option>
+<option value="auth">Auth events</option>
+<option value="admin">Admin actions</option>
+<option value="system">System</option>
+</select>
+
+</div>
+
+<div class="security-summary-grid">
+
+<div class="security-summary-card">
+<span>Total logs</span>
+<strong id="securityTotalCount">0</strong>
+</div>
+
+<div class="security-summary-card score">
+<span>Threat Score</span>
+<strong id="securityThreatScore">0</strong>
+<small>INFO 1 / WARNING 5 / CRITICAL 20</small>
+</div>
+
+<div class="security-summary-card health">
+<span>Security Health</span>
+<strong id="securityHealthPercent">100%</strong>
+<small id="securityHealthLabel">Healthy</small>
+</div>
+
+<div class="security-summary-card critical">
+<span>Critical Alerts</span>
+<strong id="securityCriticalAlertsCount">0</strong>
+</div>
+
+<div class="security-summary-card warning">
+<span>Warnings</span>
+<strong id="securityWarningCount">0</strong>
+</div>
+
+<div class="security-summary-card critical">
+<span>Critical</span>
+<strong id="securityCriticalCount">0</strong>
+</div>
+
+<div class="security-summary-card critical">
+<span>Brute Force Attempts</span>
+<strong id="securityBruteForceCount">0</strong>
+</div>
+
+<div class="security-summary-card critical">
+<span>SQL Injection Attempts</span>
+<strong id="securitySqlInjectionCount">0</strong>
+</div>
+
+</div>
+
+<div class="security-soc-grid">
+
+<div class="security-chart-card">
+<div class="security-panel-top">
+<div>
+<span>Threat Timeline</span>
+<h3>Audit severity over time</h3>
+</div>
+<small id="securityTimelineMeta">Last events</small>
+</div>
+<canvas id="securityThreatTimeline"></canvas>
+</div>
+
+<div class="security-recent-card">
+<div class="security-panel-top">
+<div>
+<span>Recent Threats</span>
+<h3>Critical activity queue</h3>
+</div>
+</div>
+<div id="securityRecentThreats"></div>
+</div>
+
+</div>
+
+<div
+id="securityLogsContainer"
+class="security-log-list">
+</div>
+
+</div>
+
+</div>
+
+<!-- ANTI-FRAUD CENTER -->
+
+<div
+id="antiFraudSection"
+style="display:none;">
+
+<div class="security-shell anti-fraud-shell">
+
+<div class="security-hero anti-fraud-hero">
+
+<div>
+
+<span class="security-kicker">
+Fraud Defense
+</span>
+
+<h2>
+Anti-Fraud Center
+</h2>
+
+<p>
+Track suspicious audit activity, login abuse, injection attempts, and high-risk users from Firestore audit logs.
+</p>
+
+</div>
+
+<div
+id="antiFraudRiskBadge"
+class="risk-level-badge safe">
+Safe
+</div>
+
+</div>
+
+<div class="security-summary-grid anti-fraud-card-grid">
+
+<div class="security-summary-card score">
+<span>Fraud Score</span>
+<strong id="antiFraudScore">0</strong>
+<small id="antiFraudScoreMeta">Safe activity</small>
+</div>
+
+<div class="security-summary-card warning">
+<span>Brute Force Attempts</span>
+<strong id="antiFraudBruteForceCount">0</strong>
+<small>Failed-login clusters</small>
+</div>
+
+<div class="security-summary-card critical">
+<span>SQL Injection Attempts</span>
+<strong id="antiFraudSqlInjectionCount">0</strong>
+<small>Malicious query patterns</small>
+</div>
+
+<div class="security-summary-card warning">
+<span>High Risk Users</span>
+<strong id="antiFraudHighRiskUsers">0</strong>
+<small>Users with elevated signals</small>
+</div>
+
+<div class="security-summary-card critical">
+<span>Critical Threats</span>
+<strong id="antiFraudCriticalThreats">0</strong>
+<small>Immediate attention required</small>
+</div>
+
+</div>
+
+<div class="security-soc-grid">
+
+<div class="security-chart-card">
+<div class="security-panel-top">
+<div>
+<span>Threat Timeline</span>
+<h3>Fraud signals over time</h3>
+</div>
+<small id="antiFraudTimelineMeta">Last events</small>
+</div>
+<canvas id="antiFraudThreatTimeline"></canvas>
+</div>
+
+<div class="security-recent-card">
+<div class="security-panel-top">
+<div>
+<span>Top Risk Users</span>
+<h3>Highest user risk scores</h3>
+</div>
+</div>
+<div
+id="antiFraudTopRiskUsers"
+class="top-risk-users">
+</div>
+</div>
+
+</div>
+
+<div class="security-recent-card anti-fraud-summary-card">
+<div class="security-panel-top">
+<div>
+<span>Threat Summary</span>
+<h3>Scoring engine breakdown</h3>
+</div>
+</div>
+<div
+id="antiFraudThreatSummary"
+class="threat-summary-grid">
+</div>
+</div>
+
+<div class="security-recent-card anti-fraud-table-card">
+<div class="security-panel-top">
+<div>
+<span>Recent Threats</span>
+<h3>Latest suspicious audit logs</h3>
+</div>
+</div>
+<div class="anti-fraud-table-wrap">
+<table class="anti-fraud-table">
+<thead>
+<tr>
+<th>Threat</th>
+<th>User</th>
+<th>Risk</th>
+<th>Score</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody id="antiFraudRecentThreats">
+</tbody>
+</table>
+</div>
+</div>
+
+</div>
+
+</div>
 </div>
 </div>
 
@@ -482,6 +1425,131 @@ GoogleGenerativeAI;
 type="module"
 src="app.js">
 </script>
+<div id="imageModal">
+
+<span
+id="closeModal">
+
+✕
+
+</span>
+
+<img id="modalImage">
+
+</div>
+
+<div
+id="toastContainer"
+aria-live="polite"
+aria-atomic="true">
+</div>
+
+<div
+id="upgradeModal"
+class="payment-modal"
+aria-hidden="true">
+
+<div class="payment-modal-card">
+
+<button
+id="closeUpgradeModal"
+class="modal-close"
+aria-label="Close payment modal">
+x
+</button>
+
+<div class="payment-modal-head">
+
+<span class="billing-kicker">
+3D Secure
+</span>
+
+<h2 id="upgradeModalTitle">
+Upgrade subscription
+</h2>
+
+<p id="upgradeModalCopy">
+Encrypted simulated checkout for school billing.
+</p>
+
+</div>
+
+<div class="secure-label-row">
+
+<span>SSL secured</span>
+<span>PCI style UI</span>
+<span>Firebase synced</span>
+
+</div>
+
+<div class="payment-form-grid">
+
+<label>
+Cardholder
+<input
+id="cardNameInput"
+type="text"
+placeholder="School Admin">
+</label>
+
+<label>
+Card Number
+<input
+id="cardNumberInput"
+type="text"
+inputmode="numeric"
+maxlength="19"
+placeholder="4242 4242 4242 4242">
+</label>
+
+<label>
+Expiry
+<input
+id="cardExpiryInput"
+type="text"
+maxlength="5"
+placeholder="12/30">
+</label>
+
+<label>
+CVC
+<input
+id="cardCvcInput"
+type="password"
+maxlength="4"
+placeholder="123">
+</label>
+
+</div>
+
+<div class="verification-card">
+
+<div>
+<strong>3D Secure verification</strong>
+<p id="secureVerificationText">Ready for bank challenge simulation.</p>
+</div>
+
+<span id="secureVerificationState">
+Standby
+</span>
+
+</div>
+
+<div class="fraud-alert-card">
+
+<strong>Fraud monitor</strong>
+<p id="fraudAlertText">No suspicious payment pattern detected.</p>
+<small id="failedAttemptCounter">Failed attempts: 0</small>
+
+</div>
+
+<button id="confirmPaymentBtn" class="pay-confirm-btn">
+Confirm simulated payment
+</button>
+
+</div>
+
+</div>
 
 </body>
 
