@@ -14,27 +14,67 @@ function escapeHtml(value) {
 
 async function sendAuditToSplunk(log) {
 
-  try {
+    const eventLabel =
+        log.action || log.event || "unknown";
 
-    await fetch(
-      `${BACKEND_URL}/audit-log`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(log)
-      }
+    console.log(
+        `[sendAuditToSplunk] → ${eventLabel}`,
+        `| severity: ${log.severity || "N/A"}`,
+        `| user: ${log.email || "N/A"}`,
+        `| endpoint: ${BACKEND_URL}/audit-log`
     );
 
-  } catch (error) {
+    try {
 
-    console.error(
-      "Splunk audit failed",
-      error
-    );
+        const response =
+            await fetch(
+                `${BACKEND_URL}/audit-log`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(log),
+                    signal: AbortSignal.timeout(10000)
+                }
+            );
 
-  }
+        if (!response.ok) {
+
+            console.error(
+                `[sendAuditToSplunk] HTTP ${response.status} for: ${eventLabel}`
+            );
+
+            return;
+
+        }
+
+        const data =
+            await response.json();
+
+        if (data.success) {
+
+            console.log(
+                `[sendAuditToSplunk] ✓ Delivered: ${eventLabel}`
+            );
+
+        } else {
+
+            console.warn(
+                `[sendAuditToSplunk] Server rejected: ${eventLabel}`,
+                data.splunk
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            `[sendAuditToSplunk] Network error for: ${eventLabel}`,
+            error.message
+        );
+
+    }
 
 }
 
@@ -476,18 +516,32 @@ let pendingLoginAuditEmail = "";
 let schoolCalendar = null;
 let calendarEvents = [];
 let calendarFilter = "all";
+let sessionTimeoutId = null;
+let sessionWarningId = null;
+let sessionCountdownId = null;
+let sessionWarningActive = false;
 
 const BRUTE_FORCE_LIMIT = 5;
 const BRUTE_FORCE_WINDOW_MS = 5 * 60 * 1000;
 const BRUTE_FORCE_THREAT_SCORE = 90;
+const ACCOUNT_LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+const ACCOUNT_LOCKOUT_THREAT_SCORE = 95;
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const SESSION_WARNING_MS = 29 * 60 * 1000;
 const SQL_INJECTION_THREAT_SCORE = 100;
 const FRAUD_SCORE_RULES = {
     LOGIN_FAILED: 5,
     BRUTE_FORCE_ATTEMPT: 40,
     SQL_INJECTION_ATTEMPT: 100,
     ROLE_CHANGED: 20,
+    PRIVILEGE_ESCALATION: 100,
     CRITICAL: 20,
     WARNING: 5
+};
+
+const PRIVILEGE_ESCALATIONS = {
+    teacher: ["admin", "superadmin"],
+    admin: ["superadmin"]
 };
 const SQL_INJECTION_PATTERNS = [
     {
@@ -1060,29 +1114,114 @@ function buildAuditLog({
 
 async function saveAuditLog(payload) {
 
-    try {
+    const log =
+        buildAuditLog(payload);
 
-        const log =
-            buildAuditLog(payload);
+    const eventLabel =
+        log.action || log.event || "unknown";
+
+    // Firestore and Splunk are independent — a failure in one
+    // must never prevent the other from executing.
+
+    try {
 
         await addDoc(
             collection(db, "auditLogs"),
             log
         );
 
+    }
+    catch (firestoreError) {
+
+        console.warn(
+            `[saveAuditLog] Firestore write failed for: ${eventLabel}`,
+            firestoreError
+        );
+
+    }
+
+    try {
+
         await sendAuditToSplunk(log);
 
     }
-    catch (error) {
+    catch (splunkError) {
 
         console.warn(
-            "Audit log failed",
-            error
+            `[saveAuditLog] Splunk delivery threw for: ${eventLabel}`,
+            splunkError
         );
 
     }
 
 }
+
+async function testSplunkConnection() {
+
+    console.log(
+        "[testSplunkConnection] Sending SPLUNK_TEST event to:",
+        `${BACKEND_URL}/splunk-test`
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                `${BACKEND_URL}/splunk-test`,
+                {
+                    method: "GET",
+                    signal: AbortSignal.timeout(12000)
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (data.splunkReachable) {
+
+            console.log(
+                "[testSplunkConnection] SUCCESS — Splunk is reachable.",
+                data
+            );
+
+            alert(
+                "Splunk connection OK.\nCheck the browser console for full details."
+            );
+
+        } else {
+
+            console.warn(
+                "[testSplunkConnection] FAILED — Splunk unreachable.",
+                data
+            );
+
+            alert(
+                `Splunk connection FAILED.\n`
+                + `Token configured: ${data.tokenConfigured}\n`
+                + `URL: ${data.splunkUrl}\n`
+                + `Reason: ${data.splunk?.reason || "unknown"}`
+            );
+
+        }
+
+        return data;
+
+    } catch (error) {
+
+        console.error(
+            "[testSplunkConnection] Network error:",
+            error.message
+        );
+
+        alert(`Splunk test network error: ${error.message}`);
+
+        return { splunkReachable: false, error: error.message };
+
+    }
+
+}
+
+window.testSplunkConnection = testSplunkConnection;
 
 function findSqlInjectionPattern(value) {
 
@@ -1237,6 +1376,9 @@ async function clearFailedLoginAttempts(email) {
                 email: normalizeValue(email),
                 attempts: [],
                 count: 0,
+                isLocked: false,
+                lockedAt: "",
+                lockedUntil: 0,
                 updatedAt: new Date().toISOString(),
                 lastBruteForceAuditAt: ""
             },
@@ -1301,6 +1443,14 @@ async function trackFailedLoginAttempt(email, errorMessage = "") {
         recentAttempts.length >= BRUTE_FORCE_LIMIT
         && (!lastAuditAt || now - lastAuditAt > BRUTE_FORCE_WINDOW_MS);
 
+    const alreadyLocked =
+        existingData.isLocked === true
+        && Number(existingData.lockedUntil || 0) > now;
+
+    const shouldLockAccount =
+        recentAttempts.length >= BRUTE_FORCE_LIMIT
+        && !alreadyLocked;
+
     await setDoc(
         attemptRef,
         {
@@ -1332,6 +1482,104 @@ async function trackFailedLoginAttempt(email, errorMessage = "") {
         });
 
     }
+
+    if (shouldLockAccount) {
+
+        const lockedUntil =
+            now + ACCOUNT_LOCKOUT_DURATION_MS;
+
+        await setDoc(
+            attemptRef,
+            {
+                isLocked: true,
+                lockedAt: new Date(now).toISOString(),
+                lockedUntil
+            },
+            { merge: true }
+        );
+
+        await saveAuditLog({
+            event: "account_locked",
+            category: "auth",
+            action: "ACCOUNT_LOCKED",
+            severity: "CRITICAL",
+            threatScore: ACCOUNT_LOCKOUT_THREAT_SCORE,
+            email: normalizedEmail,
+            role: "guest",
+            target: normalizedEmail,
+            details: `Account locked for 15 minutes after ${recentAttempts.length} failed login attempts within 5 minutes.`
+        });
+
+    }
+
+}
+
+async function checkAccountLockout(email) {
+
+    const normalizedEmail =
+        normalizeValue(email);
+
+    if (!normalizedEmail) return { locked: false };
+
+    const now =
+        Date.now();
+
+    const attemptRef =
+        doc(
+            db,
+            "failedLoginAttempts",
+            getFailedLoginDocId(normalizedEmail)
+        );
+
+    const attemptSnap =
+        await getDoc(attemptRef);
+
+    if (!attemptSnap.exists()) return { locked: false };
+
+    const data =
+        attemptSnap.data();
+
+    const lockedUntil =
+        Number(data.lockedUntil || 0);
+
+    const isLocked =
+        data.isLocked === true;
+
+    if (!isLocked || !lockedUntil) return { locked: false };
+
+    if (now < lockedUntil) {
+
+        return {
+            locked: true,
+            remainingMs: lockedUntil - now
+        };
+
+    }
+
+    await setDoc(
+        attemptRef,
+        {
+            isLocked: false,
+            lockedAt: "",
+            lockedUntil: 0,
+            updatedAt: new Date(now).toISOString()
+        },
+        { merge: true }
+    );
+
+    await saveAuditLog({
+        event: "account_unlocked",
+        category: "auth",
+        action: "ACCOUNT_UNLOCKED",
+        severity: "info",
+        threatScore: 0,
+        email: normalizedEmail,
+        role: "guest",
+        target: normalizedEmail,
+        details: `Account lockout expired for ${normalizedEmail}. Login access restored after 15-minute lockout period.`
+    });
+
+    return { locked: false };
 
 }
 
@@ -1373,6 +1621,13 @@ function isSqlInjectionLog(item) {
 
     return normalizeValue(item.action) === "sql_injection_attempt"
         || normalizeValue(item.event) === "sql_injection_attempt";
+
+}
+
+function isPrivilegeEscalationLog(item) {
+
+    return normalizeValue(item.action) === "privilege_escalation"
+        || normalizeValue(item.event) === "privilege_escalation";
 
 }
 
@@ -1648,6 +1903,12 @@ function getAntiFraudPoints(item) {
 
     }
 
+    if (isPrivilegeEscalationLog(item)) {
+
+        points += FRAUD_SCORE_RULES.PRIVILEGE_ESCALATION;
+
+    }
+
     if (severity === "critical") {
 
         points += FRAUD_SCORE_RULES.CRITICAL;
@@ -1706,6 +1967,7 @@ function buildFraudScoreEngine(logs) {
         bruteForce: 0,
         sqlInjection: 0,
         roleChanged: 0,
+        privilegeEscalation: 0,
         critical: 0,
         warning: 0
     };
@@ -1772,6 +2034,7 @@ function buildFraudScoreEngine(logs) {
 
         if (isBruteForceLog(item)) summary.bruteForce++;
         if (isSqlInjectionLog(item)) summary.sqlInjection++;
+        if (isPrivilegeEscalationLog(item)) summary.privilegeEscalation++;
 
         if (
             event === "role_changed"
@@ -2035,6 +2298,7 @@ function renderAntiFraudCenter(logs) {
             ["LOGIN_FAILED", engine.summary.loginFailed, FRAUD_SCORE_RULES.LOGIN_FAILED],
             ["BRUTE_FORCE_ATTEMPT", engine.summary.bruteForce, FRAUD_SCORE_RULES.BRUTE_FORCE_ATTEMPT],
             ["SQL_INJECTION_ATTEMPT", engine.summary.sqlInjection, FRAUD_SCORE_RULES.SQL_INJECTION_ATTEMPT],
+            ["PRIVILEGE_ESCALATION", engine.summary.privilegeEscalation, FRAUD_SCORE_RULES.PRIVILEGE_ESCALATION],
             ["ROLE_CHANGED", engine.summary.roleChanged, FRAUD_SCORE_RULES.ROLE_CHANGED],
             ["CRITICAL", engine.summary.critical, FRAUD_SCORE_RULES.CRITICAL],
             ["WARNING", engine.summary.warning, FRAUD_SCORE_RULES.WARNING]
@@ -2330,6 +2594,35 @@ loginBtn.onclick = async () => {
         );
 
     if (emailInjected || passwordInjected) return;
+
+    let lockoutStatus;
+
+    try {
+
+        lockoutStatus =
+            await checkAccountLockout(email);
+
+    }
+    catch (lockoutError) {
+
+        console.warn(
+            "Lockout check failed",
+            lockoutError
+        );
+
+        lockoutStatus = { locked: false };
+
+    }
+
+    if (lockoutStatus.locked) {
+
+        alert(
+            "Account temporarily locked due to multiple failed login attempts. Try again later."
+        );
+
+        return;
+
+    }
 
     try {
 
@@ -2905,8 +3198,12 @@ onAuthStateChanged(
 
             loadAll();
 
+            startSessionTimer();
+
         }
         else {
+
+            stopSessionTimer();
 
             loginPage.style.display =
                 "flex";
@@ -3156,6 +3453,8 @@ LOGOUT
 logoutBtn.onclick =
     async () => {
 
+        stopSessionTimer();
+
         await saveAuditLog({
             event: "logout",
             category: "auth",
@@ -3167,6 +3466,219 @@ logoutBtn.onclick =
         await signOut(auth);
 
     };
+
+/* =========================
+SESSION SECURITY
+========================= */
+
+const SESSION_ACTIVITY_EVENTS = [
+    "mousemove",
+    "keydown",
+    "touchstart",
+    "click"
+];
+
+const sessionWarningModal =
+    document.getElementById(
+        "sessionWarningModal"
+    );
+
+const sessionCountdownEl =
+    document.getElementById(
+        "sessionCountdown"
+    );
+
+const extendSessionBtn =
+    document.getElementById(
+        "extendSessionBtn"
+    );
+
+function showSessionWarning() {
+
+    if (!sessionWarningModal) return;
+
+    let seconds = 60;
+
+    if (sessionCountdownEl) {
+
+        sessionCountdownEl.textContent =
+            seconds;
+
+    }
+
+    sessionWarningModal.classList.add(
+        "active"
+    );
+
+    sessionWarningActive = true;
+
+    sessionCountdownId =
+        setInterval(() => {
+
+            seconds -= 1;
+
+            if (sessionCountdownEl) {
+
+                sessionCountdownEl.textContent =
+                    seconds;
+
+            }
+
+            if (seconds <= 0) {
+
+                clearInterval(sessionCountdownId);
+                sessionCountdownId = null;
+
+            }
+
+        }, 1000);
+
+}
+
+function hideSessionWarning() {
+
+    if (!sessionWarningModal) return;
+
+    sessionWarningModal.classList.remove(
+        "active"
+    );
+
+    sessionWarningActive = false;
+
+    if (sessionCountdownId) {
+
+        clearInterval(sessionCountdownId);
+        sessionCountdownId = null;
+
+    }
+
+}
+
+async function performAutoLogout() {
+
+    stopSessionTimer();
+
+    try {
+
+        await saveAuditLog({
+            event: "auto_logout",
+            category: "auth",
+            action: "AUTO_LOGOUT",
+            severity: "WARNING",
+            details: `${currentUserEmail || "Unknown user"} was automatically logged out after 30 minutes of inactivity.`
+        });
+
+    }
+    catch (auditError) {
+
+        console.warn(
+            "Auto-logout audit failed",
+            auditError
+        );
+
+    }
+
+    await signOut(auth);
+
+}
+
+function resetSessionTimer() {
+
+    if (sessionWarningActive) {
+
+        hideSessionWarning();
+
+    }
+
+    if (sessionWarningId) {
+
+        clearTimeout(sessionWarningId);
+
+    }
+
+    if (sessionTimeoutId) {
+
+        clearTimeout(sessionTimeoutId);
+
+    }
+
+    sessionWarningId =
+        setTimeout(
+            showSessionWarning,
+            SESSION_WARNING_MS
+        );
+
+    sessionTimeoutId =
+        setTimeout(
+            performAutoLogout,
+            SESSION_TIMEOUT_MS
+        );
+
+}
+
+function onSessionActivity() {
+
+    if (!sessionTimeoutId && !sessionWarningId) return;
+
+    resetSessionTimer();
+
+}
+
+function startSessionTimer() {
+
+    resetSessionTimer();
+
+    SESSION_ACTIVITY_EVENTS.forEach(
+        (eventType) => {
+
+            window.addEventListener(
+                eventType,
+                onSessionActivity,
+                { passive: true }
+            );
+
+        }
+    );
+
+    if (extendSessionBtn) {
+
+        extendSessionBtn.onclick =
+            () => resetSessionTimer();
+
+    }
+
+}
+
+function stopSessionTimer() {
+
+    if (sessionTimeoutId) {
+
+        clearTimeout(sessionTimeoutId);
+        sessionTimeoutId = null;
+
+    }
+
+    if (sessionWarningId) {
+
+        clearTimeout(sessionWarningId);
+        sessionWarningId = null;
+
+    }
+
+    SESSION_ACTIVITY_EVENTS.forEach(
+        (eventType) => {
+
+            window.removeEventListener(
+                eventType,
+                onSessionActivity
+            );
+
+        }
+    );
+
+    hideSessionWarning();
+
+}
 
 /* =========================
 LOAD ALL
@@ -4470,11 +4982,26 @@ window.changeRole =
         const nextRole =
             normalizeRole(newRole);
 
+        const userRef =
+            doc(db, "users", id);
+
+        const userSnap =
+            await getDoc(userRef);
+
+        const userData =
+            userSnap.exists()
+                ? userSnap.data()
+                : {};
+
+        const fromRole =
+            normalizeRole(userData.role || "student");
+
+        const targetEmail =
+            userData.email || id;
+
         await updateDoc(
-            doc(db, "users", id),
-            {
-                role: nextRole
-            }
+            userRef,
+            { role: nextRole }
         );
 
         await saveAuditLog({
@@ -4482,9 +5009,26 @@ window.changeRole =
             category: "admin",
             action: "Changed user role",
             severity: "critical",
-            target: id,
-            details: `User role changed to ${roleLabel(nextRole)}.`
+            target: targetEmail,
+            details: `Role changed from ${roleLabel(fromRole)} to ${roleLabel(nextRole)} for ${targetEmail}. Performed by ${currentUserEmail}.`
         });
+
+        const escalationTargets =
+            PRIVILEGE_ESCALATIONS[fromRole] || [];
+
+        if (escalationTargets.includes(nextRole)) {
+
+            await saveAuditLog({
+                event: "privilege_escalation",
+                category: "admin",
+                action: "PRIVILEGE_ESCALATION",
+                severity: "CRITICAL",
+                threatScore: 100,
+                target: targetEmail,
+                details: `Privilege escalation detected: ${roleLabel(fromRole)} → ${roleLabel(nextRole)} for ${targetEmail}. Granted by ${currentUserEmail}.`
+            });
+
+        }
 
         loadUsers();
 
