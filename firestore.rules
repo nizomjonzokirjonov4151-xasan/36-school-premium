@@ -50,6 +50,13 @@ service cloud.firestore {
         && request.resource.data.role == 'guest';
     }
 
+    function isLockoutAuditLog() {
+      return !signedIn()
+        && request.resource.data.event in ['account_locked', 'account_unlocked']
+        && request.resource.data.category == 'auth'
+        && request.resource.data.role == 'guest';
+    }
+
     match /users/{userId} {
       allow get, list: if signedIn();
       allow create: if signedIn();
@@ -144,9 +151,15 @@ service cloud.firestore {
       allow update, delete: if hasRole(['superadmin']);
     }
 
+    match /failedLoginAttempts/{docId} {
+      allow read: if hasRole(['superadmin', 'admin']);
+      allow create, update: if true;
+      allow delete: if hasRole(['superadmin']);
+    }
+
     match /auditLogs/{logId} {
       allow read: if hasRole(['superadmin', 'admin', 'director']);
-      allow create: if isSignedInAuditLog() || isFailedLoginAuditLog();
+      allow create: if isSignedInAuditLog() || isFailedLoginAuditLog() || isLockoutAuditLog();
       allow update, delete: if hasRole(['superadmin']);
     }
   }
